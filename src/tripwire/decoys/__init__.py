@@ -1,0 +1,1 @@
+"""Decoy templates and planting."""
