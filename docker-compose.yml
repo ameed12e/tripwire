@@ -1,0 +1,20 @@
+# Beacon server. Put a TLS-terminating reverse proxy (Caddy, nginx, Traefik) in front
+# and set server.public_url in config/config.yaml to the public https URL.
+services:
+  tripwire:
+    build: .
+    image: tripwire:latest
+    restart: unless-stopped
+    env_file: .env            # TRIPWIRE_FERNET_KEY, TRIPWIRE_SIGNING_KEY, alert secrets
+    volumes:
+      - ./deploy/config:/config:ro
+      - tripwire-data:/data
+    ports:
+      - "127.0.0.1:8080:8080"
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+volumes:
+  tripwire-data:

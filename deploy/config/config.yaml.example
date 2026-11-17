@@ -1,0 +1,13 @@
+# Server-side config used by docker-compose. Copy to config.yaml.
+data_dir: /data
+server:
+  public_url: https://tripwire.example.com
+  bind_host: 0.0.0.0
+  bind_port: 8080
+  trust_forwarded_for: true     # behind your reverse proxy
+collectors: []
+alerts:
+  - type: telegram
+    options:
+      bot_token: ${TRIPWIRE_TELEGRAM_TOKEN}
+      chat_id: ${TRIPWIRE_TELEGRAM_CHAT_ID}
