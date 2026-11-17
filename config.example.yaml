@@ -1,0 +1,56 @@
+# Tripwire example configuration.
+# Copy to ~/.config/tripwire/config.yaml (or run `tripwire init`).
+# Secrets are NEVER written here: reference environment variables with ${VAR}.
+
+host_name: my-laptop            # defaults to the machine hostname
+data_dir: ~/.local/share/tripwire
+
+logging:
+  level: INFO
+  json_output: false
+
+engine:
+  dedupe_window_seconds: 60     # collapse repeated identical events within this window
+
+server:
+  public_url: https://tripwire.example.com   # what beacons and alert links point to
+  bind_host: 127.0.0.1
+  bind_port: 8080
+  report_link_ttl_hours: 72
+  trust_forwarded_for: false    # set true only behind a reverse proxy you control
+
+collectors:
+  - type: filesystem
+    name: decoys
+    options:
+      # Empty list = watch every decoy recorded in the plant manifest.
+      paths: []
+      # Low-frequency access-time check for platforms without read events (0 = off).
+      atime_poll_seconds: 0
+
+  # Example external collector (any language) speaking the JSON-lines contract:
+  # - type: subprocess
+  #   name: rust-usb
+  #   options:
+  #     command: ["/usr/local/bin/tripwire-usb-collector"]
+
+alerts:
+  - type: telegram
+    options:
+      bot_token: ${TRIPWIRE_TELEGRAM_TOKEN}
+      chat_id: ${TRIPWIRE_TELEGRAM_CHAT_ID}
+
+  - type: email
+    enabled: false
+    options:
+      smtp_host: smtp.example.com
+      smtp_port: 587
+      username: ${TRIPWIRE_SMTP_USER}
+      password: ${TRIPWIRE_SMTP_PASSWORD}
+      sender: tripwire@example.com
+      recipients: [me@example.com]
+
+  - type: webhook
+    enabled: false
+    options:
+      url: ${TRIPWIRE_WEBHOOK_URL}

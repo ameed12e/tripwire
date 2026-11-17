@@ -1,0 +1,85 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tripwire"
+version = "0.1.0"
+description = "Defensive tripwires and honeytokens: get alerted when someone touches decoys on devices you own."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Tripwire contributors" }]
+keywords = ["honeytoken", "canary", "intrusion-detection", "security", "deception"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+dependencies = [
+    "pydantic>=2.6",
+    "pyyaml>=6.0",
+    "structlog>=24.1",
+    "cryptography>=42",
+    "typer>=0.12",
+    "rich>=13.7",
+    "httpx>=0.27",
+    "watchdog>=4.0",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "python-docx>=1.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "respx>=0.21",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "types-PyYAML",
+]
+
+[project.scripts]
+tripwire = "tripwire.cli:app"
+
+[project.entry-points."tripwire.collectors"]
+filesystem = "tripwire.collectors.filesystem:FilesystemCollector"
+subprocess = "tripwire.collectors.subprocess:SubprocessCollector"
+
+[project.entry-points."tripwire.alerts"]
+telegram = "tripwire.alerts.telegram:TelegramChannel"
+email = "tripwire.alerts.email:EmailChannel"
+webhook = "tripwire.alerts.webhook:WebhookChannel"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tripwire"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
+ignore = ["S101"]  # assert is fine in tests
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+packages = ["tripwire"]
+
+[[tool.mypy.overrides]]
+module = ["docx.*", "watchdog.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"

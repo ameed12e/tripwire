@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Secrets and local state — never commit
+.env
+*.key
+config.yaml
+tripwire.yaml
+*.db
+*.db-wal
+*.db-shm
+data/
+manifest.json
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
