@@ -5,8 +5,8 @@ import threading
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from helpers import OneShotCollector, RecordingChannel, RecordingOptions
 
+from helpers import OneShotCollector, RecordingChannel, RecordingOptions
 from tripwire.core import registry
 from tripwire.core.config import ConfigError, PluginConfig, TripwireConfig
 from tripwire.core.engine import Engine

@@ -41,7 +41,9 @@ class EmailChannel(AlertChannel[EmailOptions]):
         context = ssl.create_default_context()
         smtp: smtplib.SMTP
         if o.security == "ssl":
-            smtp = smtplib.SMTP_SSL(o.smtp_host, o.smtp_port, timeout=o.timeout_seconds, context=context)
+            smtp = smtplib.SMTP_SSL(
+                o.smtp_host, o.smtp_port, timeout=o.timeout_seconds, context=context
+            )
         else:
             smtp = smtplib.SMTP(o.smtp_host, o.smtp_port, timeout=o.timeout_seconds)
         with smtp:

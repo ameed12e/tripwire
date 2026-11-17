@@ -25,15 +25,15 @@ class PluginContext:
         return self.config.host_name
 
 
-O = TypeVar("O", bound=PluginOptions)
+OptionsT = TypeVar("OptionsT", bound=PluginOptions)
 
 
-class Plugin(Generic[O]):
+class Plugin(Generic[OptionsT]):
     """Common base for collectors and alert channels."""
 
     Options: ClassVar[type[PluginOptions]] = PluginOptions
 
-    def __init__(self, name: str, options: O, ctx: PluginContext) -> None:
+    def __init__(self, name: str, options: OptionsT, ctx: PluginContext) -> None:
         self.name = name
         self.options = options
         self.ctx = ctx

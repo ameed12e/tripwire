@@ -32,7 +32,7 @@ class HtmlBeacon(DecoyTemplate):
     def render(self, beacon_url: str | None) -> bytes:
         src = html.escape(_need(beacon_url), quote=True)
         return (
-            "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
+            '<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             "<title>Account recovery codes</title></head>\n<body>\n"
             "<h1>Account recovery codes</h1>\n"
             "<p>Store these codes somewhere safe. Each code can be used once.</p>\n"
@@ -60,7 +60,9 @@ class DocxBeacon(DecoyTemplate):
         doc.add_heading("Salary review 2026 - CONFIDENTIAL", level=1)
         doc.add_paragraph("Draft figures for leadership review. Do not forward.")
         table = doc.add_table(rows=1, cols=3)
-        for cell, text in zip(table.rows[0].cells, ("Employee", "Current", "Proposed"), strict=True):
+        for cell, text in zip(
+            table.rows[0].cells, ("Employee", "Current", "Proposed"), strict=True
+        ):
             cell.text = text
         r_id = doc.part.relate_to(url, RT.IMAGE, is_external=True)
         px = 9525  # 1 pixel in EMU
@@ -70,7 +72,8 @@ class DocxBeacon(DecoyTemplate):
             f'<wp:extent cx="{px}" cy="{px}"/><wp:docPr id="1001" name="logo"/>'
             '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
             '<pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="logo.png"/><pic:cNvPicPr/></pic:nvPicPr>'
-            f'<pic:blipFill><a:blip r:link="{r_id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            f'<pic:blipFill><a:blip r:link="{r_id}"/>'
+            "<a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
             f'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="{px}" cy="{px}"/></a:xfrm>'
             '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
             "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>"

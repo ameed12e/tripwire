@@ -8,6 +8,16 @@ import sys
 import structlog
 
 
+class _StderrProxy:
+    """Resolve ``sys.stderr`` at write time (it may be swapped, e.g. by test runners)."""
+
+    def write(self, data: str) -> int:
+        return sys.stderr.write(data)
+
+    def flush(self) -> None:
+        sys.stderr.flush()
+
+
 def configure_logging(level: str = "INFO", json_output: bool = False) -> None:
     """Configure structlog (and stdlib logging) once for the whole process."""
     log_level = getattr(logging, level.upper(), logging.INFO)
@@ -26,8 +36,8 @@ def configure_logging(level: str = "INFO", json_output: bool = False) -> None:
     structlog.configure(
         processors=[*processors, renderer],
         wrapper_class=structlog.make_filtering_bound_logger(log_level),
-        logger_factory=structlog.PrintLoggerFactory(file=sys.stderr),
-        cache_logger_on_first_use=True,
+        logger_factory=structlog.PrintLoggerFactory(file=_StderrProxy()),  # type: ignore[arg-type]
+        cache_logger_on_first_use=False,
     )
 
 

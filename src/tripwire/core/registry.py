@@ -21,8 +21,8 @@ from pydantic import ValidationError
 from tripwire.core.config import ConfigError, PluginConfig
 
 if TYPE_CHECKING:
-    from tripwire.alerts.base import AlertChannel
-    from tripwire.collectors.base import Collector
+    from tripwire.alerts.base import AnyAlertChannel
+    from tripwire.collectors.base import AnyCollector
     from tripwire.core.plugin import PluginContext
 
 T = TypeVar("T")
@@ -85,11 +85,11 @@ class Registry(Generic[T]):
         return cls
 
 
-collectors: Registry[Collector] = Registry(COLLECTOR_GROUP, _BUILTIN_COLLECTORS)
-alerts: Registry[AlertChannel] = Registry(ALERT_GROUP, _BUILTIN_ALERTS)
+collectors: Registry[AnyCollector] = Registry(COLLECTOR_GROUP, _BUILTIN_COLLECTORS)
+alerts: Registry[AnyAlertChannel] = Registry(ALERT_GROUP, _BUILTIN_ALERTS)
 
 
-def build_collector(cfg: PluginConfig, ctx: PluginContext) -> Collector:
+def build_collector(cfg: PluginConfig, ctx: PluginContext) -> AnyCollector:
     cls = collectors.get(cfg.type)
     try:
         options = cls.Options.model_validate(cfg.options)
@@ -98,7 +98,7 @@ def build_collector(cfg: PluginConfig, ctx: PluginContext) -> Collector:
     return cls(cfg.instance_name, options, ctx)
 
 
-def build_alert(cfg: PluginConfig, ctx: PluginContext) -> AlertChannel:
+def build_alert(cfg: PluginConfig, ctx: PluginContext) -> AnyAlertChannel:
     cls = alerts.get(cfg.type)
     try:
         options = cls.Options.model_validate(cfg.options)

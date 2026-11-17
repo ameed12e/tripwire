@@ -13,8 +13,8 @@ import contextlib
 import time
 from collections.abc import Sequence
 
-from tripwire.alerts.base import AlertChannel, AlertMessage
-from tripwire.collectors.base import Collector
+from tripwire.alerts.base import AlertMessage, AnyAlertChannel
+from tripwire.collectors.base import AnyCollector
 from tripwire.core.config import TripwireConfig
 from tripwire.core.events import Event, Incident
 from tripwire.core.logging import get_logger
@@ -31,8 +31,8 @@ class Engine:
         self,
         config: TripwireConfig,
         db: Database,
-        channels: Sequence[AlertChannel] = (),
-        collectors: Sequence[Collector] = (),
+        channels: Sequence[AnyAlertChannel] = (),
+        collectors: Sequence[AnyCollector] = (),
     ) -> None:
         self.config = config
         self.db = db
@@ -102,7 +102,7 @@ class Engine:
             return
         message = AlertMessage(incident=incident, report_url=self.report_link(incident))
 
-        async def deliver(channel: AlertChannel) -> None:
+        async def deliver(channel: AnyAlertChannel) -> None:
             try:
                 await asyncio.wait_for(channel.send(message), ALERT_TIMEOUT_SECONDS)
                 log.info("alert_sent", channel=channel.name, incident=incident.id)
@@ -123,7 +123,7 @@ class Engine:
             finally:
                 self._queue.task_done()
 
-    async def _run_collector(self, collector: Collector) -> None:
+    async def _run_collector(self, collector: AnyCollector) -> None:
         try:
             await collector.run(self.emit)
         except asyncio.CancelledError:

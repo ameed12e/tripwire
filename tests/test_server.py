@@ -6,8 +6,8 @@ from urllib.parse import urlparse
 
 import pytest
 from fastapi.testclient import TestClient
-from helpers import RecordingChannel, RecordingOptions
 
+from helpers import RecordingChannel, RecordingOptions
 from tripwire.core.config import TripwireConfig
 from tripwire.core.engine import Engine
 from tripwire.core.events import EventKind

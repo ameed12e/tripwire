@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import abc
 from dataclasses import dataclass
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from tripwire.core.events import Incident, Severity
 from tripwire.core.plugin import Plugin, PluginOptions
 
-O = TypeVar("O", bound=PluginOptions)
+OptionsT = TypeVar("OptionsT", bound=PluginOptions)
 
 _SEVERITY_ICON = {
     Severity.LOW: "🔵",
@@ -60,10 +60,13 @@ class AlertError(Exception):
     """Raised by a channel when delivery fails."""
 
 
-class AlertChannel(Plugin[O], abc.ABC):
+class AlertChannel(Plugin[OptionsT], abc.ABC):
     @abc.abstractmethod
     async def send(self, message: AlertMessage) -> None:
         """Deliver the alert. Raise :class:`AlertError` on failure."""
 
-    async def close(self) -> None:  # noqa: B027 - optional hook
+    async def close(self) -> None:
         """Release resources."""
+
+
+AnyAlertChannel = AlertChannel[Any]

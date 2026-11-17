@@ -67,6 +67,9 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "B", "UP", "S", "SIM", "RUF"]
 ignore = ["S101"]  # assert is fine in tests
 
+[tool.ruff.lint.isort]
+known-first-party = ["tripwire", "helpers"]
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "B"]
 

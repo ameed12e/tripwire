@@ -71,7 +71,7 @@ def test_plant_file_decoy_and_remove(config: TripwireConfig, tmp_path: Path) -> 
     assert load_manifest(config.manifest_path).get(rec.id) == rec
     with pytest.raises(PlantError, match="exists"):
         plant(config, "passwords", tmp_path)
-    removed, deleted = remove(config, rec.id)
+    _, deleted = remove(config, rec.id)
     assert deleted and not path.exists()
     assert load_manifest(config.manifest_path).decoys == []
 

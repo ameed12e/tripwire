@@ -119,7 +119,13 @@ def test_atime_check(config: TripwireConfig, tmp_path: Path) -> None:
 # ---------------------------------------------------------------- subprocess
 def test_parse_line_contract() -> None:
     line = json.dumps(
-        {"v": 1, "kind": "custom", "summary": "USB inserted", "severity": "low", "details": {"a": 1}}
+        {
+            "v": 1,
+            "kind": "custom",
+            "summary": "USB inserted",
+            "severity": "low",
+            "details": {"a": 1},
+        }
     )
     ev = parse_line(line, "usb")
     assert ev is not None and ev.summary == "USB inserted" and ev.details == {"a": 1}

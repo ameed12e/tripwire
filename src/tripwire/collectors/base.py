@@ -9,20 +9,23 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Callable
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from tripwire.core.events import Event
 from tripwire.core.plugin import Plugin, PluginOptions
 
 Emit = Callable[[Event], None]
 
-O = TypeVar("O", bound=PluginOptions)
+OptionsT = TypeVar("OptionsT", bound=PluginOptions)
 
 
-class Collector(Plugin[O], abc.ABC):
+class Collector(Plugin[OptionsT], abc.ABC):
     @abc.abstractmethod
     async def run(self, emit: Emit) -> None:
         """Run until cancelled or :meth:`stop` is called. Must not busy-loop."""
 
-    async def stop(self) -> None:  # noqa: B027 - optional hook
+    async def stop(self) -> None:
         """Release resources. Called once on shutdown."""
+
+
+AnyCollector = Collector[Any]

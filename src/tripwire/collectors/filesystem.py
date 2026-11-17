@@ -25,6 +25,7 @@ from watchdog.events import (
     FileSystemEventHandler,
 )
 from watchdog.observers import Observer
+from watchdog.observers.api import BaseObserver
 
 from tripwire.collectors.base import Collector, Emit
 from tripwire.core.events import Event, EventKind, Severity
@@ -77,7 +78,7 @@ class FilesystemCollector(Collector[FilesystemOptions]):
     def __init__(self, *args: object, **kwargs: object) -> None:
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         self._emit: Emit | None = None
-        self._observer: Observer | None = None
+        self._observer: BaseObserver | None = None
         self._stopped = threading.Event()
         self._targets: dict[str, str | None] = {}  # resolved path -> decoy id
         self._dir_targets: dict[str, str | None] = {}

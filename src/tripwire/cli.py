@@ -30,7 +30,9 @@ from tripwire.core.engine import Engine
 from tripwire.core.logging import configure_logging
 from tripwire.core.plugin import PluginContext
 from tripwire.decoys.base import PlantError, load_manifest
-from tripwire.decoys.planter import TEMPLATES, plant as plant_decoy, remove as remove_decoy
+from tripwire.decoys.planter import TEMPLATES
+from tripwire.decoys.planter import plant as plant_decoy
+from tripwire.decoys.planter import remove as remove_decoy
 from tripwire.storage import Cipher, Database, DecryptionError, generate_key
 
 app = typer.Typer(
@@ -44,7 +46,11 @@ err = Console(stderr=True)
 
 ConfigOpt = Annotated[
     Path | None,
-    typer.Option("--config", "-c", help="Config file (default: $TRIPWIRE_CONFIG or ~/.config/tripwire/config.yaml)"),
+    typer.Option(
+        "--config",
+        "-c",
+        help="Config file (default: $TRIPWIRE_CONFIG or ~/.config/tripwire/config.yaml)",
+    ),
 ]
 
 
@@ -180,7 +186,9 @@ def plant(
         table.add_column("Default filename")
         table.add_column("Description")
         for name, cls in sorted(TEMPLATES.items()):
-            table.add_row(name, "beacon" if cls.beacon else "file", cls.default_filename, cls.description)
+            table.add_row(
+                name, "beacon" if cls.beacon else "file", cls.default_filename, cls.description
+            )
         console.print(table)
         return
 

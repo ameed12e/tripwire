@@ -12,10 +12,28 @@ from typing import ClassVar
 
 from tripwire.decoys.base import DecoyTemplate
 
-_WORDS = (
-    "orbit velvet canyon ember lantern quartz meadow harbor violet summit thunder glacier "
-    "copper falcon willow saddle marble prism anchor cobalt"
-).split()
+_WORDS = [
+    "orbit",
+    "velvet",
+    "canyon",
+    "ember",
+    "lantern",
+    "quartz",
+    "meadow",
+    "harbor",
+    "violet",
+    "summit",
+    "thunder",
+    "glacier",
+    "copper",
+    "falcon",
+    "willow",
+    "saddle",
+    "marble",
+    "prism",
+    "anchor",
+    "cobalt",
+]
 
 
 def _rand(alphabet: str, n: int) -> str:

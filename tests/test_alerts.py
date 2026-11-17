@@ -5,7 +5,7 @@ import hashlib
 import hmac
 import json
 import smtplib
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 import pytest
@@ -110,7 +110,7 @@ def test_webhook_full_report_and_failure(config: TripwireConfig) -> None:
 
 # --------------------------------------------------------------------- email
 class FakeSMTP:
-    instances: list[FakeSMTP] = []
+    instances: ClassVar[list[FakeSMTP]] = []
 
     def __init__(self, host: str, port: int, timeout: float = 0, **_: Any) -> None:
         self.host, self.port = host, port

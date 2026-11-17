@@ -4,9 +4,16 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+import structlog
 from cryptography.fernet import Fernet
 
 from tripwire.core.config import ENV_FERNET_KEY, ENV_SIGNING_KEY, TripwireConfig, parse_config
+
+
+@pytest.fixture(autouse=True)
+def _reset_structlog() -> Iterator[None]:
+    yield
+    structlog.reset_defaults()
 
 
 @pytest.fixture

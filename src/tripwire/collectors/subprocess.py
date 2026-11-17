@@ -77,7 +77,9 @@ class SubprocessCollector(Collector[SubprocessOptions]):
 
     async def _pump_stderr(self, stream: asyncio.StreamReader) -> None:
         async for raw in stream:
-            log.info("collector_stderr", collector=self.name, line=raw.decode(errors="replace")[:500])
+            log.info(
+                "collector_stderr", collector=self.name, line=raw.decode(errors="replace")[:500]
+            )
 
     async def _run_once(self, emit: Emit) -> int:
         env = {**os.environ, **self.options.env}
