@@ -164,9 +164,23 @@ def resolve_config_path(path: Path | str | None = None) -> Path:
     return DEFAULT_CONFIG_PATH.expanduser()
 
 
+def _expand_config(data: dict[str, Any]) -> dict[str, Any]:
+    """Expand env references, skipping disabled plugins (their secrets may be unset)."""
+    out: dict[str, Any] = {}
+    for key, value in data.items():
+        if key in ("collectors", "alerts") and isinstance(value, list):
+            out[key] = [
+                p if isinstance(p, dict) and p.get("enabled") is False else expand_env(p)
+                for p in value
+            ]
+        else:
+            out[key] = expand_env(value)
+    return out
+
+
 def parse_config(data: dict[str, Any]) -> TripwireConfig:
     try:
-        return TripwireConfig.model_validate(expand_env(data))
+        return TripwireConfig.model_validate(_expand_config(data))
     except ValidationError as exc:
         raise ConfigError(f"invalid configuration:\n{exc}") from exc
 

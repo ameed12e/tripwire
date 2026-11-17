@@ -33,6 +33,16 @@ def test_missing_env_reference_is_error(monkeypatch: pytest.MonkeyPatch) -> None
         expand_env("${TW_NOPE}")
 
 
+def test_disabled_plugin_secrets_not_required(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("TW_UNSET", raising=False)
+    cfg = parse_config(
+        {"alerts": [{"type": "telegram", "enabled": False, "options": {"t": "${TW_UNSET}"}}]}
+    )
+    assert cfg.alerts[0].options["t"] == "${TW_UNSET}"
+    with pytest.raises(ConfigError, match="TW_UNSET"):
+        parse_config({"alerts": [{"type": "telegram", "options": {"t": "${TW_UNSET}"}}]})
+
+
 def test_unknown_key_rejected() -> None:
     with pytest.raises(ConfigError):
         parse_config({"bogus": 1})
