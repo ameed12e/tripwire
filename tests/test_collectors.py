@@ -5,6 +5,7 @@ import json
 import os
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,10 @@ from tripwire.core.plugin import PluginContext
 from tripwire.decoys.base import DecoyRecord, add_to_manifest
 
 
+def _has(kind: EventKind) -> Callable[[list[Event]], bool]:
+    return lambda events: any(e.kind == kind for e in events)
+
+
 def _fs(config: TripwireConfig, **opts: object) -> FilesystemCollector:
     return FilesystemCollector("fs", FilesystemOptions(**opts), PluginContext(config))  # type: ignore[arg-type]
 
@@ -24,16 +29,17 @@ def _fs(config: TripwireConfig, **opts: object) -> FilesystemCollector:
 async def _collect(
     collector: FilesystemCollector | SubprocessCollector,
     action: object,
-    want: int = 1,
+    until: Callable[[list[Event]], bool] = bool,
     timeout: float = 5.0,
 ) -> list[Event]:
+    """Run the collector, perform ``action``, and wait until ``until(events)`` holds."""
     events: list[Event] = []
     task = asyncio.create_task(collector.run(events.append))
     await asyncio.sleep(0.3)  # let the observer start
     if callable(action):
         await asyncio.to_thread(action)
     deadline = time.monotonic() + timeout
-    while len(events) < want and time.monotonic() < deadline:
+    while not until(events) and time.monotonic() < deadline:
         await asyncio.sleep(0.05)
     await collector.stop()
     task.cancel()
@@ -54,7 +60,7 @@ def test_detects_modification_of_manifest_decoy(config: TripwireConfig, tmp_path
         with decoy.open("a") as fh:
             fh.write("x")
 
-    events = asyncio.run(_collect(_fs(config), touch))
+    events = asyncio.run(_collect(_fs(config), touch, until=_has(EventKind.FILE_MODIFIED)))
     assert events, "no event emitted"
     assert all(e.decoy_id == "d1" for e in events)
     assert any(e.kind in (EventKind.FILE_MODIFIED, EventKind.FILE_ACCESSED) for e in events)
@@ -94,9 +100,35 @@ def test_detects_delete_inside_watched_dir(config: TripwireConfig, tmp_path: Pat
     victim = folder / "q3.xlsx"
     victim.write_text("x")
     events = asyncio.run(
-        _collect(_fs(config, paths=[str(folder)], use_manifest=False), victim.unlink)
+        _collect(
+            _fs(config, paths=[str(folder)], use_manifest=False),
+            victim.unlink,
+            until=_has(EventKind.FILE_DELETED),
+        )
     )
     assert any(e.kind == EventKind.FILE_DELETED for e in events)
+
+
+def test_events_from_before_start_are_ignored(config: TripwireConfig, tmp_path: Path) -> None:
+    """macOS FSEvents may replay the decoy's own creation after the watcher starts."""
+    decoy = tmp_path / "decoy.txt"
+    decoy.write_text("x")
+    collector = _fs(config, paths=[str(decoy)], use_manifest=False)
+    events: list[Event] = []
+    collector._emit = events.append
+    collector.load_targets()
+    collector._started_at = time.time() + 1  # decoy was written before "start"
+    collector.handle_fs_event("created", str(decoy), None, False)
+    collector.handle_fs_event("modified", str(decoy), None, False)
+    assert events == []
+    collector.handle_fs_event("deleted", str(decoy), None, False)  # never filtered
+    assert [e.kind for e in events] == [EventKind.FILE_DELETED]
+    # A real change after start is reported.
+    events.clear()
+    collector._started_at = time.time() - 1
+    decoy.write_text("tampered")
+    collector.handle_fs_event("modified", str(decoy), None, False)
+    assert [e.kind for e in events] == [EventKind.FILE_MODIFIED]
 
 
 def test_atime_check(config: TripwireConfig, tmp_path: Path) -> None:

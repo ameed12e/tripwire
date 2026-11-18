@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import os
 import threading
+import time
 from pathlib import Path
 
 from pydantic import Field
@@ -43,6 +44,8 @@ _KIND_MAP = {
     "moved": EventKind.FILE_MOVED,
     "created": EventKind.FILE_CREATED,
 }
+
+REPLAY_WINDOW_SECONDS = 5.0
 
 _SEVERITY = {
     EventKind.FILE_ACCESSED: Severity.HIGH,
@@ -84,6 +87,7 @@ class FilesystemCollector(Collector[FilesystemOptions]):
         self._dir_targets: dict[str, str | None] = {}
         self._labels: dict[str, str] = {}
         self._atimes: dict[str, float] = {}
+        self._started_at = 0.0
 
     # ------------------------------------------------------------- targets
     def load_targets(self) -> None:
@@ -130,7 +134,27 @@ class FilesystemCollector(Collector[FilesystemOptions]):
         matched, decoy_id = self._match(src)
         if not matched:
             return
+        if kind in (EventKind.FILE_CREATED, EventKind.FILE_MODIFIED) and self._is_replayed(src):
+            log.debug("fs_event_replayed_ignored", path=src, fs_event=event_type)
+            return
         self._emit_event(kind, src, decoy_id, dest=dest, via=f"watchdog:{event_type}")
+
+    def _is_replayed(self, path: str) -> bool:
+        """True for create/modify events describing changes made *before* we started.
+
+        macOS FSEvents can deliver events that happened shortly before the stream
+        was opened (e.g. the planting of the decoy itself). A genuine change after
+        start always moves mtime/ctime past the start time. The check only applies
+        during a short window after start, so coarse-timestamp filesystems cannot
+        hide later tampering.
+        """
+        if time.time() - self._started_at > REPLAY_WINDOW_SECONDS:
+            return False
+        try:
+            st = os.stat(path)
+        except OSError:
+            return True  # file gone: the delete/move event reports it
+        return max(st.st_mtime, st.st_ctime) < self._started_at
 
     def _emit_event(
         self, kind: EventKind, path: str, decoy_id: str | None, dest: str | None, via: str
@@ -189,6 +213,7 @@ class FilesystemCollector(Collector[FilesystemOptions]):
         self._emit = emit
         self._stopped.clear()
         self.load_targets()
+        self._started_at = time.time()
         observer = Observer()
         for directory, recursive in self._watch_dirs().items():
             observer.schedule(_Handler(self), directory, recursive=recursive)
