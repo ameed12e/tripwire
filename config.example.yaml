@@ -11,6 +11,8 @@ logging:
 
 engine:
   dedupe_window_seconds: 60     # collapse repeated identical events within this window
+  collect_context: true         # add user, process, remote sessions, outbound conns to file alerts
+  context_timeout_seconds: 3
 
 server:
   public_url: https://tripwire.example.com   # what beacons and alert links point to

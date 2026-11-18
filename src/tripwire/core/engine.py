@@ -15,8 +15,9 @@ from collections.abc import Sequence
 
 from tripwire.alerts.base import AlertMessage, AnyAlertChannel
 from tripwire.collectors.base import AnyCollector
+from tripwire.core import context
 from tripwire.core.config import TripwireConfig
-from tripwire.core.events import Event, Incident
+from tripwire.core.events import Event, EventKind, Incident
 from tripwire.core.logging import get_logger
 from tripwire.server.security import report_url
 from tripwire.storage.db import Database
@@ -24,6 +25,18 @@ from tripwire.storage.db import Database
 log = get_logger(__name__)
 
 ALERT_TIMEOUT_SECONDS = 20.0
+
+# Host context only makes sense for local file events; beacon hits come from
+# the network and already carry the client IP.
+_CONTEXT_KINDS = frozenset(
+    {
+        EventKind.FILE_ACCESSED,
+        EventKind.FILE_MODIFIED,
+        EventKind.FILE_DELETED,
+        EventKind.FILE_MOVED,
+        EventKind.FILE_CREATED,
+    }
+)
 
 
 class Engine:
@@ -84,12 +97,28 @@ class Engine:
             self.stats["suppressed"] += 1
             log.debug("event_suppressed", key=event.dedupe_key())
             return None
+        event = await self._with_context(event)
         incident = Incident(event=event)
         await asyncio.to_thread(self.db.add_incident, incident)
         self.stats["incidents"] += 1
         log.warning("incident", id=incident.id, kind=event.kind.value, summary=event.summary)
         await self._dispatch(incident)
         return incident
+
+    async def _with_context(self, event: Event) -> Event:
+        cfg = self.config.engine
+        if not cfg.collect_context or event.kind not in _CONTEXT_KINDS:
+            return event
+        if "context" in event.details:
+            return event
+        try:
+            ctx = await asyncio.wait_for(
+                asyncio.to_thread(context.snapshot, event.path), cfg.context_timeout_seconds
+            )
+        except Exception as exc:
+            log.warning("context_snapshot_failed", error=type(exc).__name__)
+            return event
+        return event.model_copy(update={"details": {**event.details, "context": ctx}})
 
     def report_link(self, incident: Incident) -> str:
         srv = self.config.server

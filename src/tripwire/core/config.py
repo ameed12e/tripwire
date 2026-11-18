@@ -67,6 +67,11 @@ class ServerConfig(_Strict):
 class EngineConfig(_Strict):
     dedupe_window_seconds: float = Field(default=60.0, ge=0)
     queue_size: int = Field(default=1000, ge=1)
+    collect_context: bool = Field(
+        default=True,
+        description="Snapshot process/user/sessions/connections when a decoy file fires",
+    )
+    context_timeout_seconds: float = Field(default=3.0, gt=0)
 
 
 class LoggingConfig(_Strict):
