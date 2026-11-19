@@ -53,8 +53,7 @@ tripwire init --public-url https://tripwire.example.com
 tripwire plant --list                 # see decoy templates
 tripwire plant passwords ~/Documents --label "Documents password list"
 tripwire plant beacon-docx ~/Desktop  # needs `tripwire serve` reachable at public URL
-export TRIPWIRE_TELEGRAM_TOKEN=123:abc TRIPWIRE_TELEGRAM_CHAT_ID=987654
-# enable the telegram alert in ~/.config/tripwire/config.yaml, then:
+tripwire setup-telegram               # hidden token prompt, chat ID, test message
 tripwire watch                        # run the agent
 tripwire status                       # decoys + counts
 tripwire incidents                    # list incidents, --show <id> for a full report
@@ -64,7 +63,11 @@ tripwire plant --remove-all           # clean up every decoy you planted
 `tripwire init` writes the config to `~/.config/tripwire/config.yaml` (or
 `$TRIPWIRE_CONFIG`). It also writes `TRIPWIRE_FERNET_KEY` and `TRIPWIRE_SIGNING_KEY`
 to `~/.local/share/tripwire/.env` with mode `600`. Real environment variables
-override that file. **Back up the Fernet key**: without it, stored incidents
+override that file. `tripwire setup-telegram` asks for the bot token with hidden
+input (it is never echoed or logged), checks it and the chat ID with Telegram by
+sending a test message, stores both in that same `.env`, and sets
+`enabled: true` on the Telegram alert. Windows users: see
+[docs/WINDOWS.md](docs/WINDOWS.md). **Back up the Fernet key**: without it, stored incidents
 cannot be decrypted.
 
 ### Running the beacon server

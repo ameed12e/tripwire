@@ -58,3 +58,56 @@ class TelegramChannel(AlertChannel[TelegramOptions]):
         if self._client is not None:
             await self._client.aclose()
             self._client = None
+
+
+def _api_error(resp: httpx.Response, token: str) -> str:
+    """Extract Telegram's error description, never echoing the token."""
+    try:
+        description = str(resp.json().get("description", ""))
+    except ValueError:
+        description = resp.text[:200]
+    return description.replace(token, "<redacted>") or f"HTTP {resp.status_code}"
+
+
+def verify_telegram(
+    token: str,
+    chat_id: str,
+    *,
+    api_base: str = API_BASE,
+    client: httpx.Client | None = None,
+) -> str:
+    """Check the bot token (``getMe``) and chat ID (a test ``sendMessage``).
+
+    Returns the bot's @username. Raises :class:`AlertError` with a message that
+    never contains the token or the request URL.
+    """
+    own = client is None
+    http = client or httpx.Client(timeout=15)
+    base = f"{api_base}/bot{token}"
+    try:
+        try:
+            me = http.get(f"{base}/getMe")
+        except httpx.HTTPError as exc:
+            raise AlertError(f"cannot reach Telegram: {type(exc).__name__}") from None
+        if me.status_code != 200 or not me.json().get("ok", False):
+            raise AlertError(f"bot token rejected by Telegram: {_api_error(me, token)}")
+        username = str(me.json().get("result", {}).get("username", "?"))
+        try:
+            sent = http.post(
+                f"{base}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": "✅ Tripwire is connected. Alerts will arrive in this chat.",
+                },
+            )
+        except httpx.HTTPError as exc:
+            raise AlertError(f"cannot reach Telegram: {type(exc).__name__}") from None
+        if sent.status_code != 200 or not sent.json().get("ok", False):
+            raise AlertError(
+                f"cannot send to chat {chat_id}: {_api_error(sent, token)} "
+                f"(open a chat with @{username} and press Start first)"
+            )
+        return username
+    finally:
+        if own:
+            http.close()

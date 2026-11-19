@@ -10,6 +10,7 @@ from a ``.env`` file in the data directory that ``tripwire init`` creates with
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 import socket
@@ -22,6 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, SecretStr, Validatio
 ENV_FERNET_KEY = "TRIPWIRE_FERNET_KEY"
 ENV_SIGNING_KEY = "TRIPWIRE_SIGNING_KEY"
 ENV_CONFIG_PATH = "TRIPWIRE_CONFIG"
+ENV_TELEGRAM_TOKEN = "TRIPWIRE_TELEGRAM_TOKEN"  # noqa: S105 - variable name, not a secret
+ENV_TELEGRAM_CHAT_ID = "TRIPWIRE_TELEGRAM_CHAT_ID"
 
 DEFAULT_CONFIG_PATH = Path("~/.config/tripwire/config.yaml")
 DEFAULT_DATA_DIR = Path("~/.local/share/tripwire")
@@ -144,6 +147,39 @@ def read_env_file(path: Path) -> dict[str, str]:
         key, _, val = line.partition("=")
         values[key.strip()] = val.strip().strip('"').strip("'")
     return values
+
+
+def write_env_values(path: Path, values: dict[str, str]) -> None:
+    """Set ``KEY=value`` lines in a .env file, keeping every other line.
+
+    Existing keys are replaced in place, new keys are appended. The file is
+    written atomically and created with ``0600`` permissions (best effort on
+    Windows, where the user profile directory is already private).
+    """
+    for key, val in values.items():
+        if "\n" in val or "\r" in val or "\n" in key or "=" in key:
+            raise ConfigError(f"invalid value for {key}")
+    remaining = dict(values)
+    lines: list[str] = []
+    if path.is_file():
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            key = raw.partition("=")[0].strip()
+            if "=" in raw and not raw.lstrip().startswith("#") and key in remaining:
+                lines.append(f"{key}={remaining.pop(key)}")
+            else:
+                lines.append(raw)
+    else:
+        lines.append("# Tripwire secrets - never commit or share this file.")
+    lines.extend(f"{key}={val}" for key, val in remaining.items())
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("\n".join(lines) + "\n")
+    os.replace(tmp, path)
+    with contextlib.suppress(OSError):
+        path.chmod(0o600)
 
 
 def load_env_file(path: Path) -> None:

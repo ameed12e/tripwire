@@ -1,4 +1,7 @@
-"""Command line interface: ``tripwire init | plant | watch | status | incidents | serve``."""
+"""Command line interface.
+
+``tripwire init | setup-telegram | plant | watch | status | incidents | serve``
+"""
 
 from __future__ import annotations
 
@@ -6,6 +9,7 @@ import asyncio
 import contextlib
 import json
 import os
+import re
 import signal
 import stat
 from pathlib import Path
@@ -17,14 +21,20 @@ from rich.console import Console
 from rich.table import Table
 
 from tripwire import __version__
+from tripwire.alerts.base import AlertError
+from tripwire.alerts.telegram import API_BASE as TELEGRAM_API_BASE
+from tripwire.alerts.telegram import verify_telegram
 from tripwire.core import registry
 from tripwire.core.config import (
     ENV_FERNET_KEY,
     ENV_SIGNING_KEY,
+    ENV_TELEGRAM_CHAT_ID,
+    ENV_TELEGRAM_TOKEN,
     ConfigError,
     TripwireConfig,
     load_config,
     resolve_config_path,
+    write_env_values,
 )
 from tripwire.core.engine import Engine
 from tripwire.core.logging import configure_logging
@@ -163,6 +173,93 @@ def init(
     console.print(f"[green]✓[/] Config written to {cfg_path}")
     console.print(f"[green]✓[/] Keys stored in {env_file} (mode 600)")
     console.print("Next: [bold]tripwire plant --list[/], then [bold]tripwire watch[/]")
+
+
+# ------------------------------------------------------------ setup-telegram
+_TOKEN_RE = re.compile(r"^\d{5,}:[A-Za-z0-9_-]{30,}$")
+_CHAT_RE = re.compile(r"^(-?\d{3,}|@[A-Za-z][A-Za-z0-9_]{4,})$")
+
+
+def _enable_telegram_in_config(cfg_path: Path) -> None:
+    """Set ``enabled: true`` on the telegram alert (adding one if missing)."""
+    text = cfg_path.read_text(encoding="utf-8")
+    raw = yaml.safe_load(text) or {}
+    header = "".join(f"{line}\n" for line in text.splitlines() if line.startswith("#"))
+    refs = {"bot_token": f"${{{ENV_TELEGRAM_TOKEN}}}", "chat_id": f"${{{ENV_TELEGRAM_CHAT_ID}}}"}
+    alerts = raw.setdefault("alerts", []) or []
+    raw["alerts"] = alerts
+    entries = [a for a in alerts if isinstance(a, dict) and a.get("type") == "telegram"]
+    if not entries:
+        entries = [{"type": "telegram", "enabled": True, "options": {}}]
+        alerts.append(entries[0])
+    for entry in entries:
+        entry["enabled"] = True
+        options = entry.get("options") or {}
+        options.update(refs)  # always reference env vars; never keep an inlined token
+        entry["options"] = options
+    tmp = cfg_path.with_name(cfg_path.name + ".tmp")
+    tmp.write_text(header + yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    os.replace(tmp, cfg_path)
+
+
+@app.command("setup-telegram")
+def setup_telegram(
+    chat_id: Annotated[
+        str | None, typer.Option(help="Chat ID (asked interactively if omitted)")
+    ] = None,
+    config: ConfigOpt = None,
+) -> None:
+    """Store the Telegram bot token + chat ID, verify them, and enable Telegram alerts.
+
+    The token is read with hidden input. It is never echoed, logged or
+    written to the config file; it goes only to the .env in your data directory.
+    """
+    cfg_path = resolve_config_path(config)
+    # Check before _load(), which copies the .env values into os.environ.
+    overridden = [n for n in (ENV_TELEGRAM_TOKEN, ENV_TELEGRAM_CHAT_ID) if n in os.environ]
+    cfg = _load(cfg_path)
+    env_file = cfg.env_file
+    console.print("Create a bot with [bold]@BotFather[/] (/newbot) and copy its token.")
+    console.print("Then open a chat with your bot and press [bold]Start[/].")
+    console.print("Your chat ID: message [bold]@userinfobot[/] (groups: a negative number).")
+    console.print("[dim]Paste the token and press Enter. Nothing is shown while you type.[/]")
+    token = typer.prompt("Bot token", hide_input=True, prompt_suffix=": ").strip()
+    if not _TOKEN_RE.match(token):
+        raise _fail("that does not look like a bot token (expected 123456789:AA...)")
+    if chat_id is None:
+        chat_id = typer.prompt("Chat ID").strip()
+    chat_id = chat_id.strip()
+    if not _CHAT_RE.match(chat_id):
+        raise _fail("chat ID must be a number like 987654321 (or -100... / @channel)")
+
+    console.print("Verifying with Telegram...")
+    api_base = next(
+        (
+            str(a.options["api_base"])
+            for a in cfg.alerts
+            if a.type == "telegram" and a.options.get("api_base")
+        ),
+        TELEGRAM_API_BASE,
+    )
+    try:
+        bot = verify_telegram(token, chat_id, api_base=api_base)
+    except AlertError as exc:
+        raise _fail(str(exc)) from None
+    console.print(f"[green]✓[/] Bot @{bot} sent a test message to chat {chat_id}")
+
+    try:
+        write_env_values(env_file, {ENV_TELEGRAM_TOKEN: token, ENV_TELEGRAM_CHAT_ID: chat_id})
+        _enable_telegram_in_config(cfg_path)
+    except (OSError, ConfigError, yaml.YAMLError) as exc:
+        raise _fail(f"could not save settings: {type(exc).__name__}: {exc}") from None
+    console.print(f"[green]✓[/] Token and chat ID saved to {env_file}")
+    console.print(f"[green]✓[/] Telegram alerts enabled in {cfg_path}")
+    for name in overridden:
+        console.print(
+            f"[yellow]Note:[/] {name} is also set in your environment and "
+            "overrides the .env file. Unset it if it holds an old value."
+        )
+    console.print("Next: [bold]tripwire plant ...[/] then [bold]tripwire watch[/]")
 
 
 # --------------------------------------------------------------------- plant
